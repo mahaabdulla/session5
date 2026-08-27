@@ -1,79 +1,85 @@
-const { validationResult } = require('express-validator');
-const { courses } = require('../data/courses');
+const { validationResult } = require("express-validator");
+const Course = require("../models/course.model");
 
-
-
-const getAllCourses = (req, res) => {
-    res.json(courses);
+const getAllCourses = async (req, res) => {
+  const courses = await Course.find();
+  res.json(courses);
 };
-
-
-const getCourse = (req, res) => {
-    console.log('===== {req.params} ====', req.params);
-    const course = courses.find(c => c.id === parseInt(req.params.id));
-    if (!course) return res.status(404).json({ error: 'Course not found' });
-    res.json(course);
-
-};
-
-const addCourse = (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { title, price } = req.body;
-    const newCourse = { id: courses.length + 1, title, price };
-    courses.push(newCourse);
-    res.status(201).json(newCourse);
-};
-
-
-
-const updateCourse = (req, res) => {
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
-
-    const courseId = parseInt(req.params.id);
-    const course = courses.find(c => c.id === courseId);
-
+const getCourse = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    const course = await Course.findById(courseId);
     if (!course) {
-        return res.status(404).json({ error: 'الكورس غير موجود' });
+      return res.status(404).json({ message: "Course not found" });
     }
 
-    const { title, price } = req.body;
-
-
-    if (title !== undefined) {
-        course.title = title;
-    }
-
-    if (price !== undefined) {
-        course.price = price;
-    }
-    res.json(course);
+    return res.json({ course });
+  } catch (error) {
+    return res
+      .status(400)
+      .json({ message: "Invalid Course ID format", error: error.message });
+  }
 };
 
+const addCourse = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
+  const newCourse = new Course(req.body);
+  await newCourse.save();
+  res.status(201).json(newCourse);
+};
 
+const updateCourse = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
-const deleteCourse = (req, res) => {
-    const courseId = parseInt(req.params.id);
-    const courseIndex = courses.findIndex(c => c.id === courseId);
-    if (courseIndex === -1) {
-        return res.status(404).json({ error: 'الكورس غير موجود' });
+  try {
+    const courseId = req.params.id;
+    const updatedCourse = await Course.findByIdAndUpdate(
+      courseId,
+      { $set: req.body },
+      { new: true },
+    );
+
+    if (!updatedCourse) {
+      return res.status(404).json({ error: "course not found" });
     }
-    courses.splice(courseIndex, 1);
-    res.json({ message: 'الكورس تم حذفه بنجاح' });
+
+    res.json(updatedCourse);
+  } catch (error) {
+    return res
+      .status(400)
+      .json({ message: "invalid id", error: error.message });
+  }
+};
+
+const deleteCourse = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    const deletedCourse = await Course.findByIdAndDelete(courseId);
+
+    if (!deletedCourse) {
+      return res.status(404).json({ error: "course no find" });
+    }
+
+    res.json({ message: "deleted success", deletedCourse });
+  } catch (error) {
+    return res.status(400).json({
+      message: "invalid id ",
+      error: error.message,
+    });
+  }
 };
 
 module.exports = {
-    getAllCourses,
-    getCourse,
-    addCourse,
-    updateCourse,
-    deleteCourse
+  getAllCourses,
+  getCourse,
+  addCourse,
+  updateCourse,
+  deleteCourse,
 };
