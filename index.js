@@ -4,10 +4,12 @@ const express = require("express");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path");
 
 const httpStatusText = require("./util/httpStatusText");
 
 const app = express();
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const port = process.env.PORT || 3000;
 const url = process.env.MONGO_URL;
@@ -28,8 +30,9 @@ mongoose
 const coursesRouter = require("./routes/courses.routes");
 const usersRouter = require("./routes/users.routes");
 
-app.use(morgan("dev"));
-app.use(express.json());
+app.get("/", (req, res) => {
+  res.send("API is running 🚀");
+});
 
 app.use("/api/courses", coursesRouter);
 app.use("/api/users", usersRouter);

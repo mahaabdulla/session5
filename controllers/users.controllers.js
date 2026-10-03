@@ -1,10 +1,10 @@
-
 const asyncWrapper = require("../middleware/asyncWrapper");
 const httpStatusText = require("../util/httpStatusText");
 const User = require("../models/user.model");
 const appError = require("../util/appError");
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
+const generateJWT = require("../util/generate.JWT");
 
 // =========================
 // Get All Users
@@ -34,11 +34,7 @@ const getUserById = asyncWrapper(async (req, res, next) => {
   const userId = req.params.id;
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
-    const error = appError.create(
-      "Invalid user id",
-      400,
-      httpStatusText.FAIL
-    );
+    const error = appError.create("Invalid user id", 400, httpStatusText.FAIL);
 
     return next(error);
   }
@@ -49,11 +45,7 @@ const getUserById = asyncWrapper(async (req, res, next) => {
   });
 
   if (!user) {
-    const error = appError.create(
-      "User not found",
-      404,
-      httpStatusText.FAIL
-    );
+    const error = appError.create("User not found", 404, httpStatusText.FAIL);
 
     return next(error);
   }
@@ -72,6 +64,8 @@ const getUserById = asyncWrapper(async (req, res, next) => {
 const register = asyncWrapper(async (req, res, next) => {
   const { name, email, password } = req.body;
 
+  console.log("req.file -> ", req.file);
+
   const normalizedEmail = email.trim().toLowerCase();
 
   const oldUser = await User.findOne({
@@ -82,7 +76,7 @@ const register = asyncWrapper(async (req, res, next) => {
     const error = appError.create(
       "User already exists",
       409,
-      httpStatusText.FAIL
+      httpStatusText.FAIL,
     );
 
     return next(error);
@@ -90,13 +84,25 @@ const register = asyncWrapper(async (req, res, next) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  const newUser = new User({
+  const userData = {
     name,
     email: normalizedEmail,
     password: hashedPassword,
-  });
+  };
+
+  if (req.file) {
+    userData.avatar = `/uploads/${req.file.filename}`;
+  }
+
+  const newUser = new User(userData);
 
   await newUser.save();
+
+  const token = await generateJWT({
+    userId: newUser._id,
+    email: newUser.email,
+    role: newUser.role,
+  });
 
   newUser.password = undefined;
 
@@ -104,6 +110,7 @@ const register = asyncWrapper(async (req, res, next) => {
     status: httpStatusText.SUCCESS,
     data: {
       user: newUser,
+      token,
     },
   });
 });
@@ -114,12 +121,11 @@ const register = asyncWrapper(async (req, res, next) => {
 const login = asyncWrapper(async (req, res, next) => {
   const { email, password } = req.body;
 
-  // التأكد من إرسال الإيميل والباسورد
   if (!email || !password) {
     const error = appError.create(
       "Email and password are required",
       400,
-      httpStatusText.FAIL
+      httpStatusText.FAIL,
     );
 
     return next(error);
@@ -127,46 +133,36 @@ const login = asyncWrapper(async (req, res, next) => {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  // البحث عن المستخدم
   const user = await User.findOne({
     email: normalizedEmail,
   });
 
-  // المستخدم غير موجود
   if (!user) {
-    const error = appError.create(
-      "User not found",
-      404,
-      httpStatusText.FAIL
-    );
+    const error = appError.create("User not found", 404, httpStatusText.FAIL);
 
     return next(error);
   }
 
-  // مقارنة الباسورد
-  const matchedPassword = await bcrypt.compare(
-    password,
-    user.password
-  );
+  const matchedPassword = await bcrypt.compare(password, user.password);
 
-  // الباسورد غير صحيح
   if (!matchedPassword) {
-    const error = appError.create(
-      "Invalid password",
-      401,
-      httpStatusText.FAIL
-    );
+    const error = appError.create("Invalid password", 401, httpStatusText.FAIL);
 
     return next(error);
   }
 
-  // عدم إرجاع الباسورد في الـ response
+  const token = await generateJWT({
+    userId: user._id,
+    email: user.email,
+    role: user.role,
+  });
+
   user.password = undefined;
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
     data: {
-      user,
+      token,
     },
   });
 });
