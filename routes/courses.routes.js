@@ -5,7 +5,7 @@ const controllers = require("../controllers/courses.controllers");
 const {
   validationSchema,
   updateValidationSchema,
-} = require("../middleware/validationsSchema");
+} = require("../middleware/validations/course.validation");
 const verifyToken = require("../middleware/verifyToken");
 const allowedTo = require("../middleware/allowedTo");
 const userRoles = require("../util/userRoles");
