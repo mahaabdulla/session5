@@ -180,21 +180,25 @@ const updateUserRole = asyncWrapper(async (req, res, next) => {
   const { role } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
-    const error = appError.create("Invalid user id", 400, httpStatusText.FAIL);
+    return next(appError.create("Invalid user id", 400, httpStatusText.FAIL));
+  }
 
-    return next(error);
+  const allowedRoles = ["ADMIN", "USER", "MANAGER"];
+
+  if (!allowedRoles.includes(role)) {
+    return next(appError.create("Invalid user role", 400, httpStatusText.FAIL));
   }
 
   const user = await User.findById(userId);
 
   if (!user) {
-    const error = appError.create("User not found", 404, httpStatusText.FAIL);
-
-    return next(error);
+    return next(appError.create("User not found", 404, httpStatusText.FAIL));
   }
 
   user.role = role;
   await user.save();
+
+  user.password = undefined;
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,

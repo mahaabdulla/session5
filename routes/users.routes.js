@@ -7,24 +7,29 @@ const upload = require("../middleware/upload");
 const allowedTo = require("../middleware/allowedTo");
 const userRoles = require("../util/userRoles");
 
+// register
+router
+  .route("/register")
+  .post(upload.single("avatar"), userscontrollers.register);
+
+// login
+router.route("/login").post(userscontrollers.login);
+
+// get all users
 router
   .route("/")
   .get(verifyToken, allowedTo(userRoles.ADMIN), userscontrollers.getAllUsers);
 
-router.route("/:id").get(verifyToken, userscontrollers.getUserById);
-
+// update user role
 router
   .route("/:id/role")
-  .put(
+  .patch(
     verifyToken,
     allowedTo(userRoles.ADMIN),
     userscontrollers.updateUserRole,
   );
 
-router
-  .route("/register")
-  .post(upload.single("avatar"), userscontrollers.register);
-
-router.route("/login").post(userscontrollers.login);
+// get user by id
+router.route("/:id").get(verifyToken, userscontrollers.getUserById);
 
 module.exports = router;
