@@ -10,7 +10,7 @@ const verifyToken = (req, res, next) => {
     const error = appError.create(
       "Token is required",
       401,
-      httpStatusText.FAIL
+      httpStatusText.FAIL,
     );
 
     return next(error);
@@ -19,16 +19,12 @@ const verifyToken = (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-  const currentUser =  jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const currentUser = jwt.verify(token, process.env.JWT_SECRET_KEY);
     req.user = currentUser;
-    
+
     next();
   } catch (err) {
-    const error = appError.create(
-      "Invalid token",
-      401,
-      httpStatusText.FAIL
-    );
+    const error = appError.create("Invalid token", 401, httpStatusText.FAIL);
 
     return next(error);
   }

@@ -2,13 +2,13 @@ const mongoose = require("mongoose");
 
 const enrollmentSchema = new mongoose.Schema(
   {
-    userId: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    courseId: {
+    course: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
       required: true,
@@ -25,7 +25,7 @@ const enrollmentSchema = new mongoose.Schema(
   },
 );
 
-enrollmentSchema.index({ userId: 1, courseId: 1 }, { unique: true });
+enrollmentSchema.index({ user: 1, course: 1 }, { unique: true });
 
 const Enrollment = mongoose.model("Enrollment", enrollmentSchema);
 

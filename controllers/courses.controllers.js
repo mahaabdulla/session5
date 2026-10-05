@@ -12,6 +12,7 @@ const getAllCourses = asyncWrapper(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
 
   const skip = (page - 1) * limit;
+  const total = await Course.countDocuments();
 
   const courses = await Course.find({}, { __v: false }).limit(limit).skip(skip);
 
@@ -19,7 +20,13 @@ const getAllCourses = asyncWrapper(async (req, res) => {
     status: httpStatusText.SUCCESS,
     data: {
       courses,
-    },   
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
   });
 });
 

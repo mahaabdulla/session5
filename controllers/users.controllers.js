@@ -9,11 +9,12 @@ const generateJWT = require("../util/generate.JWT");
 // =========================
 // Get All Users
 // =========================
-const getAllUsers = asyncWrapper(async (req, res, next) => {
+const getAllUsers = asyncWrapper(async (req, res) => {
   const limit = parseInt(req.query.limit) || 2;
   const page = parseInt(req.query.page) || 1;
 
   const skip = (page - 1) * limit;
+  const total = await User.countDocuments();
 
   const users = await User.find({}, { __v: false, password: false })
     .limit(limit)
@@ -23,6 +24,12 @@ const getAllUsers = asyncWrapper(async (req, res, next) => {
     status: httpStatusText.SUCCESS,
     data: {
       users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     },
   });
 });
@@ -167,9 +174,40 @@ const login = asyncWrapper(async (req, res, next) => {
   });
 });
 
+// update user role
+const updateUserRole = asyncWrapper(async (req, res, next) => {
+  const userId = req.params.id;
+  const { role } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    const error = appError.create("Invalid user id", 400, httpStatusText.FAIL);
+
+    return next(error);
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    const error = appError.create("User not found", 404, httpStatusText.FAIL);
+
+    return next(error);
+  }
+
+  user.role = role;
+  await user.save();
+
+  return res.status(200).json({
+    status: httpStatusText.SUCCESS,
+    data: {
+      user,
+    },
+  });
+});
+
 module.exports = {
   getAllUsers,
   getUserById,
   register,
   login,
+  updateUserRole,
 };

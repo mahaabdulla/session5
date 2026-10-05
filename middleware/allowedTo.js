@@ -7,7 +7,7 @@ module.exports = (...roles) => {
     if (!roles.includes(req.user.role)) {
       const error = appError.create(
         "User not authorized to access this route",
-        401,
+        403,
         httpStatusText.FAIL,
       );
       return next(error);

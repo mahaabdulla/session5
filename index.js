@@ -29,7 +29,7 @@ mongoose
 
 const coursesRouter = require("./routes/courses.routes");
 const usersRouter = require("./routes/users.routes");
-const enrollmentscontrollers = require("./controllers/enrollments.controllers");
+const enrollmentsRouter = require("./routes/enrollments.routes");
 
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
@@ -37,7 +37,7 @@ app.get("/", (req, res) => {
  
 app.use("/api/courses", coursesRouter);
 app.use("/api/users", usersRouter);
-app.use("/api/enrollments",enrollmentscontrollers );
+app.use("/api/enrollments", enrollmentsRouter);
 
 //defult route middleware   لراوت الي مو موجود
 // global middleware for not found routes
