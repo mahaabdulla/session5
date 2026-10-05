@@ -1,1 +1,1 @@
-NodeJs api for managing courses
+NodeJs api for managing courses users 
