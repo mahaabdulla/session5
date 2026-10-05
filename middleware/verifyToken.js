@@ -13,6 +13,7 @@ const verifyToken = (req, res, next) => {
       httpStatusText.FAIL,
     );
 
+    // GO TO ERROR HANDLER MIDDLEWARE
     return next(error);
   }
 
