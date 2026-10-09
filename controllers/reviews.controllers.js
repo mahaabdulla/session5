@@ -68,6 +68,32 @@ const createReview = asyncWrapper(async (req, res, next) => {
   });
 });
 
+const getCourseReviews = asyncWrapper(async (req, res, next) => {
+  const courseId = req.params.courseId;
+
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    return next(appError.create("Invalid course id", 400, httpStatusText.FAIL));
+  }
+
+  const foundCourse = await Course.findById(courseId);
+
+  if (!foundCourse) {
+    return next(appError.create("Course not found", 404, httpStatusText.FAIL));
+  }
+
+  const reviews = await Review.find({
+    course: courseId,
+  }).populate("user", "name avatar");
+
+  return res.status(200).json({
+    status: httpStatusText.SUCCESS,
+    data: {
+      reviews,
+    },
+  });
+});
+
 module.exports = {
   createReview,
+  getCourseReviews,
 };
