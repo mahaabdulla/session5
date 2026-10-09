@@ -7,7 +7,7 @@ const cors = require("cors");
 const path = require("path");
 
 const httpStatusText = require("./util/httpStatusText");
-
+const reviewsRouter = require("./routes/review.routes");
 const app = express();
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -34,10 +34,11 @@ const enrollmentsRouter = require("./routes/enrollments.routes");
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
 });
- 
+
 app.use("/api/courses", coursesRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/enrollments", enrollmentsRouter);
+app.use("/api/reviews", reviewsRouter);
 
 //defult route middleware   لراوت الي مو موجود
 // global middleware for not found routes

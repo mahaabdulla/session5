@@ -3,8 +3,8 @@ const router = express.Router();
 
 const controllers = require("../controllers/courses.controllers");
 const {
-  validationSchema,
-  updateValidationSchema,
+  createCourseValidation,
+  updateCourseValidation,
 } = require("../middleware/validations/course.validation");
 const verifyToken = require("../middleware/verifyToken");
 const allowedTo = require("../middleware/allowedTo");
@@ -16,7 +16,7 @@ router
   .post(
     verifyToken,
     allowedTo(userRoles.ADMIN),
-    validationSchema(),
+    createCourseValidation(),
     controllers.addCourse,
   );
 
@@ -26,7 +26,7 @@ router
   .patch(
     verifyToken,
     allowedTo(userRoles.ADMIN),
-    updateValidationSchema(),
+    updateCourseValidation(),
     controllers.updateCourse,
   )
   .delete(

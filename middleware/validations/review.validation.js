@@ -1,5 +1,3 @@
-const validateRequest = require("../middleware/validationResult");
-
 const { body } = require("express-validator");
 
 const createReviewValidation = [
