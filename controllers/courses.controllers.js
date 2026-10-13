@@ -1,62 +1,140 @@
-const { validationResult } = require("express-validator");
+const mongoose = require("mongoose");
+
 const Course = require("../models/course.model");
-const httpStatusText = require("../util/httpStatusText.js");
-const asyncWrapper = require("../middleware/asyncWrapper.js");
-const appError = require("../util/appError.js");
-const Review = require("../models/review.model");
+const httpStatusText = require("../util/httpStatusText");
+const asyncWrapper = require("../middleware/asyncWrapper");
+const appError = require("../util/appError");
+
+const { buildCourseQuery } = require("../helpers/courseQuery.helper");
+
+const {
+  getCourses,
+  getCourseById,
+  createCourse,
+  updateCourseById,
+  deleteCourseById,
+} = require("../services/course.service");
 
 // =========================
 // Get All Courses
 // =========================
-const getAllCourses = asyncWrapper(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 2;
-  const page = parseInt(req.query.page) || 1;
+const getAllCourses = asyncWrapper(async (req, res, next) => {
+  const {
+    search,
+    minPrice,
+    maxPrice,
+    sort = "newest",
+    page = 1,
+    limit = 10,
+  } = req.query;
 
-  const skip = (page - 1) * limit;
-  const total = await Course.countDocuments();
+  const pageNumber = Number(page);
+  const limitNumber = Number(limit);
 
-  // Get courses with pagination
-  const courses = await Course.find({}, { __v: false })
-    .sort({ _id: 1 })
-    .limit(limit)
-    .skip(skip)
-    .lean();
-
-  // Calculate ratings for all courses
-  const stats = await Review.aggregate([
-    {
-      $group: {
-        _id: "$course",
-        averageRating: { $avg: "$rating" },
-        reviewsCount: { $sum: 1 },
-      },
-    },
-  ]);
-
-  // Merge courses with their ratings
-  const updatedCourses = courses.map((course) => {
-    const courseStats = stats.find(
-      (stat) => stat._id.toString() === course._id.toString(),
+  if (
+    !Number.isInteger(pageNumber) ||
+    pageNumber < 1 ||
+    !Number.isInteger(limitNumber) ||
+    limitNumber < 1 ||
+    limitNumber > 100
+  ) {
+    return next(
+      appError.create(
+        "Invalid pagination parameters",
+        400,
+        httpStatusText.FAIL,
+      ),
     );
+  }
 
-    return {
-      ...course,
-      averageRating: courseStats
-        ? Number(courseStats.averageRating.toFixed(2))
-        : 0,
-      reviewsCount: courseStats?.reviewsCount ?? 0,
-    };
+  const skip = (pageNumber - 1) * limitNumber;
+
+  if (search !== undefined && typeof search !== "string") {
+    return next(appError.create("Invalid search", 400, httpStatusText.FAIL));
+  }
+
+  if (minPrice !== undefined) {
+    const min = Number(minPrice);
+
+    if (
+      typeof minPrice !== "string" ||
+      minPrice.trim() === "" ||
+      !Number.isFinite(min) ||
+      min < 0
+    ) {
+      return next(
+        appError.create("Invalid minPrice", 400, httpStatusText.FAIL),
+      );
+    }
+  }
+
+  if (maxPrice !== undefined) {
+    const max = Number(maxPrice);
+
+    if (
+      typeof maxPrice !== "string" ||
+      maxPrice.trim() === "" ||
+      !Number.isFinite(max) ||
+      max < 0
+    ) {
+      return next(
+        appError.create("Invalid maxPrice", 400, httpStatusText.FAIL),
+      );
+    }
+  }
+
+  if (
+    minPrice !== undefined &&
+    maxPrice !== undefined &&
+    Number(minPrice) > Number(maxPrice)
+  ) {
+    return next(
+      appError.create(
+        "minPrice cannot be greater than maxPrice",
+        400,
+        httpStatusText.FAIL,
+      ),
+    );
+  }
+
+  const query = buildCourseQuery({
+    search,
+    minPrice,
+    maxPrice,
   });
+
+  const sortOptions = {
+    newest: { _id: -1 },
+    oldest: { _id: 1 },
+    price_asc: { price: 1, _id: 1 },
+    price_desc: { price: -1, _id: 1 },
+    title_asc: { title: 1, _id: 1 },
+  };
+
+  if (typeof sort !== "string" || !Object.hasOwn(sortOptions, sort)) {
+    return next(
+      appError.create("Invalid sort option", 400, httpStatusText.FAIL),
+    );
+  }
+
+  const sortQuery = sortOptions[sort];
+
+  const { courses, total } = await getCourses(
+    query,
+    sortQuery,
+    skip,
+    limitNumber,
+  );
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
     data: {
-      courses: updatedCourses,
+      courses,
       pagination: {
-        page,
-        limit,
+        page: pageNumber,
+        limit: limitNumber,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / limitNumber),
       },
     },
   });
@@ -65,67 +143,23 @@ const getAllCourses = asyncWrapper(async (req, res) => {
 // =========================
 // Get Single Course
 // =========================
-const mongoose = require("mongoose");
-
 const getCourse = asyncWrapper(async (req, res, next) => {
   const courseId = req.params.id;
 
-  // 1. Validate Course ID
   if (!mongoose.Types.ObjectId.isValid(courseId)) {
-    return next(
-      appError.create(
-        "Invalid course id",
-        400,
-        httpStatusText.FAIL
-      )
-    );
+    return next(appError.create("Invalid course id", 400, httpStatusText.FAIL));
   }
 
-  // 2. Check if course exists
-  const course = await Course.findById(courseId, {
-    __v: false,
-  }).lean();
+  const course = await getCourseById(courseId);
 
   if (!course) {
-    return next(
-      appError.create(
-        "Course not found",
-        404,
-        httpStatusText.FAIL
-      )
-    );
+    return next(appError.create("Course not found", 404, httpStatusText.FAIL));
   }
 
-  // 3. Calculate course rating statistics
-  const stats = await Review.aggregate([
-    {
-      $match: {
-        course: new mongoose.Types.ObjectId(courseId),
-      },
-    },
-    {
-      $group: {
-        _id: "$course",
-        averageRating: { $avg: "$rating" },
-        reviewsCount: { $sum: 1 },
-      },
-    },
-  ]);
-
-  // 4. Merge course data with statistics
-  const updatedCourse = {
-    ...course,
-    averageRating: stats[0]
-      ? Number(stats[0].averageRating.toFixed(2))
-      : 0,
-    reviewsCount: stats[0]?.reviewsCount ?? 0,
-  };
-
-  // 5. Send response
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
     data: {
-      course: updatedCourse,
+      course,
     },
   });
 });
@@ -134,23 +168,11 @@ const getCourse = asyncWrapper(async (req, res, next) => {
 // Add Course
 // =========================
 const addCourse = asyncWrapper(async (req, res) => {
-  const errors = validationResult(req);
-
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      status: httpStatusText.FAIL,
-      data: {
-        errors: errors.array(),
-      },
-    });
-  }
-
-  const newCourse = new Course(req.body);
-
-  await newCourse.save();
+  const newCourse = await createCourse(req.body);
 
   return res.status(201).json({
     status: httpStatusText.SUCCESS,
+    message: "Course created successfully",
     data: {
       course: newCourse,
     },
@@ -161,38 +183,25 @@ const addCourse = asyncWrapper(async (req, res) => {
 // Update Course
 // =========================
 const updateCourse = asyncWrapper(async (req, res, next) => {
-  const errors = validationResult(req);
-
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      status: httpStatusText.FAIL,
-      data: {
-        errors: errors.array(),
-      },
-    });
-  }
-
   const courseId = req.params.id;
 
-  const updatedCourse = await Course.findByIdAndUpdate(
-    courseId,
-    {
-      $set: req.body,
-    },
-    {
-      new: true,
-      runValidators: true,
-    },
-  );
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    return next(
+      appError.create("Invalid course id", 400, httpStatusText.FAIL)
+    );
+  }
+
+  const updatedCourse = await updateCourseById(courseId, req.body);
 
   if (!updatedCourse) {
-    const error = appError.create("Course not found", 404, httpStatusText.FAIL);
-
-    return next(error);
+    return next(
+      appError.create("Course not found", 404, httpStatusText.FAIL)
+    );
   }
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
+    message: "Course updated successfully",
     data: {
       course: updatedCourse,
     },
@@ -205,16 +214,19 @@ const updateCourse = asyncWrapper(async (req, res, next) => {
 const deleteCourse = asyncWrapper(async (req, res, next) => {
   const courseId = req.params.id;
 
-  const deletedCourse = await Course.findByIdAndDelete(courseId);
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    return next(appError.create("Invalid course id", 400, httpStatusText.FAIL));
+  }
+
+  const deletedCourse = await deleteCourseById(courseId);
 
   if (!deletedCourse) {
-    const error = appError.create("Course not found", 404, httpStatusText.FAIL);
-
-    return next(error);
+    return next(appError.create("Course not found", 404, httpStatusText.FAIL));
   }
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
+    message: "Course deleted successfully",
     data: null,
   });
 });
