@@ -6,27 +6,29 @@ const verifyToken = require("../middleware/verifyToken");
 const allowedTo = require("../middleware/allowedTo");
 const validateRequest = require("../middleware/validationResult");
 const userRoles = require("../util/userRoles");
+
 const {
   createReviewValidation,
+  updateReviewValidation,
 } = require("../middleware/validations/review.validation");
 
-router
-  .route("/")
-  .post(
-    verifyToken,
-    allowedTo(userRoles.USER),
-    createReviewValidation,
-    validateRequest,
-    controllers.createReview,
-  );
+// Create Review
+router.route("/").post(
+  verifyToken,
+  allowedTo(userRoles.USER),
+  createReviewValidation,
+  validateRequest,
+  controllers.createReview
+);
 
+// Update Review
 router.patch(
   "/:id",
   verifyToken,
   allowedTo(userRoles.USER),
   updateReviewValidation(),
   validateRequest,
-  controllers.updateReview,
+  controllers.updateReview
 );
 
 module.exports = router;
