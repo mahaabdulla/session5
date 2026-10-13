@@ -12,7 +12,7 @@ const {
   getCourseById,
   createCourse,
   updateCourseById,
-  deleteCourseById,
+  archiveCourseById,
 } = require("../services/course.service");
 
 // =========================
@@ -103,6 +103,8 @@ const getAllCourses = asyncWrapper(async (req, res, next) => {
     maxPrice,
   });
 
+  query.status = "PUBLISHED";
+
   const sortOptions = {
     newest: { _id: -1 },
     oldest: { _id: 1 },
@@ -186,17 +188,13 @@ const updateCourse = asyncWrapper(async (req, res, next) => {
   const courseId = req.params.id;
 
   if (!mongoose.Types.ObjectId.isValid(courseId)) {
-    return next(
-      appError.create("Invalid course id", 400, httpStatusText.FAIL)
-    );
+    return next(appError.create("Invalid course id", 400, httpStatusText.FAIL));
   }
 
   const updatedCourse = await updateCourseById(courseId, req.body);
 
   if (!updatedCourse) {
-    return next(
-      appError.create("Course not found", 404, httpStatusText.FAIL)
-    );
+    return next(appError.create("Course not found", 404, httpStatusText.FAIL));
   }
 
   return res.status(200).json({
@@ -209,25 +207,25 @@ const updateCourse = asyncWrapper(async (req, res, next) => {
 });
 
 // =========================
-// Delete Course
-// =========================
-const deleteCourse = asyncWrapper(async (req, res, next) => {
+const archiveCourse = asyncWrapper(async (req, res, next) => {
   const courseId = req.params.id;
 
   if (!mongoose.Types.ObjectId.isValid(courseId)) {
     return next(appError.create("Invalid course id", 400, httpStatusText.FAIL));
   }
 
-  const deletedCourse = await deleteCourseById(courseId);
+  const archivedCourse = await archiveCourseById(courseId);
 
-  if (!deletedCourse) {
+  if (!archivedCourse) {
     return next(appError.create("Course not found", 404, httpStatusText.FAIL));
   }
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
-    message: "Course deleted successfully",
-    data: null,
+    message: "Course archived successfully",
+    data: {
+      course: archivedCourse,
+    },
   });
 });
 
@@ -236,5 +234,5 @@ module.exports = {
   getCourse,
   addCourse,
   updateCourse,
-  deleteCourse,
+  archiveCourse,
 };

@@ -58,8 +58,15 @@ const updateCourseById = async (courseId, courseData) => {
 };
 
 // =========================
-const deleteCourseById = async (courseId) => {
-  return await Course.findByIdAndDelete(courseId);
+const archiveCourseById = async (courseId) => {
+  return await Course.findByIdAndUpdate(
+    courseId,
+    { status: "ARCHIVED" },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
 };
 
 module.exports = {
@@ -67,5 +74,5 @@ module.exports = {
   getCourseById,
   createCourse,
   updateCourseById,
-  deleteCourseById,
+  archiveCourseById,
 };
