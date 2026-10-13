@@ -1,16 +1,28 @@
-const mongoose  = require("mongoose")
+const mongoose = require("mongoose");
 
-
-const courseSchema =new mongoose.Schema({
-    title : {
-        type : String,
-        require : true
+const courseSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    price:{
-        type : Number,
-        require : true
-    }
-})
 
-//wirete it in upper case and singler db will translation to plureler 
-module.exports = mongoose.model('Course', courseSchema);
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    status: {
+      type: String,
+      enum: ["DRAFT", "PUBLISHED", "ARCHIVED"],
+      default: "DRAFT",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Course", courseSchema);
