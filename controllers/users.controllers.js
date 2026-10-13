@@ -115,6 +115,7 @@ const register = asyncWrapper(async (req, res, next) => {
 
   return res.status(201).json({
     status: httpStatusText.SUCCESS,
+    message: "User registered successfully",
     data: {
       user: newUser,
       token,
@@ -168,6 +169,7 @@ const login = asyncWrapper(async (req, res, next) => {
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
+    message: "Logged in successfully",
     data: {
       token,
     },

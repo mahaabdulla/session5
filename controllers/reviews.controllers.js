@@ -81,6 +81,63 @@ const createReview = asyncWrapper(async (req, res, next) => {
 });
 
 // =========================
+// Update Review
+// =========================
+const updateReview = asyncWrapper(async (req, res, next) => {
+  const reviewId = req.params.id;
+  const { rating, comment } = req.body;
+
+  // Validate review ID
+  if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+    return next(
+      appError.create("Invalid review id", 400, httpStatusText.FAIL)
+    );
+  }
+
+  // Check if at least one field is provided
+  if (rating === undefined && comment === undefined) {
+    return next(
+      appError.create(
+        "At least one field (rating or comment) must be provided",
+        400,
+        httpStatusText.FAIL
+      )
+    );
+  }
+
+  // Find review belonging to current user
+  const review = await Review.findOne({
+    _id: reviewId,
+    user: req.user.userId,
+  });
+
+  if (!review) {
+    return next(
+      appError.create("Review not found", 404, httpStatusText.FAIL)
+    );
+  }
+
+  // Update only provided fields
+  if (rating !== undefined) {
+    review.rating = rating;
+  }
+
+  if (comment !== undefined) {
+    review.comment = comment;
+  }
+
+  // Save changes and run Mongoose validation
+  await review.save();
+
+  return res.status(200).json({
+    status: httpStatusText.SUCCESS,
+    data: {
+      review,
+    },
+  });
+});
+
+// =========================
 // Get Course Reviews + Stats
 // =========================
 const getCourseReviews = asyncWrapper(async (req, res, next) => {
@@ -142,5 +199,6 @@ const getCourseReviews = asyncWrapper(async (req, res, next) => {
 
 module.exports = {
   createReview,
+  updateReview,
   getCourseReviews,
 };
