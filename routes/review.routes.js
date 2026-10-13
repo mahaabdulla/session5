@@ -17,7 +17,16 @@ router
     allowedTo(userRoles.USER),
     createReviewValidation,
     validateRequest,
-    controllers.createReview
+    controllers.createReview,
   );
-  
+
+router.patch(
+  "/:id",
+  verifyToken,
+  allowedTo(userRoles.USER),
+  updateReviewValidation(),
+  validateRequest,
+  controllers.updateReview,
+);
+
 module.exports = router;
