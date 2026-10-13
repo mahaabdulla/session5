@@ -6,20 +6,30 @@ const Course = require("../models/course.model");
 const Enrollment = require("../models/enrollment");
 const Review = require("../models/review.model");
 
+// =========================
+// Create Review
+// =========================
 const createReview = asyncWrapper(async (req, res, next) => {
   const { course, rating, comment } = req.body;
   const user = req.user.userId;
 
+  // Validate course ID
   if (!mongoose.Types.ObjectId.isValid(course)) {
-    return next(appError.create("Invalid course id", 400, httpStatusText.FAIL));
+    return next(
+      appError.create("Invalid course id", 400, httpStatusText.FAIL)
+    );
   }
 
+  // Check if course exists
   const foundCourse = await Course.findById(course);
 
   if (!foundCourse) {
-    return next(appError.create("Course not found", 404, httpStatusText.FAIL));
+    return next(
+      appError.create("Course not found", 404, httpStatusText.FAIL)
+    );
   }
 
+  // Check if user completed the course
   const enrollment = await Enrollment.findOne({
     user,
     course,
@@ -31,11 +41,12 @@ const createReview = asyncWrapper(async (req, res, next) => {
       appError.create(
         "You must complete the course before leaving a review",
         403,
-        httpStatusText.FAIL,
-      ),
+        httpStatusText.FAIL
+      )
     );
   }
 
+  // Prevent duplicate reviews
   const existingReview = await Review.findOne({
     user,
     course,
@@ -46,11 +57,12 @@ const createReview = asyncWrapper(async (req, res, next) => {
       appError.create(
         "You have already reviewed this course",
         409,
-        httpStatusText.FAIL,
-      ),
+        httpStatusText.FAIL
+      )
     );
   }
 
+  // Create review
   const review = new Review({
     user,
     course,
@@ -68,6 +80,67 @@ const createReview = asyncWrapper(async (req, res, next) => {
   });
 });
 
+// =========================
+// Get Course Reviews + Stats
+// =========================
+const getCourseReviews = asyncWrapper(async (req, res, next) => {
+  const courseId = req.params.courseId;
+
+  // Validate course ID
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    return next(
+      appError.create("Invalid course id", 400, httpStatusText.FAIL)
+    );
+  }
+
+  // Check if course exists
+  const foundCourse = await Course.findById(courseId);
+
+  if (!foundCourse) {
+    return next(
+      appError.create("Course not found", 404, httpStatusText.FAIL)
+    );
+  }
+
+  // Calculate average rating and reviews count
+  const stats = await Review.aggregate([
+    {
+      $match: {
+        course: new mongoose.Types.ObjectId(courseId),
+      },
+    },
+    {
+      $group: {
+        _id: "$course",
+        averageRating: { $avg: "$rating" },
+        reviewsCount: { $sum: 1 },
+      },
+    },
+  ]);
+
+  // Get all reviews for this course
+  const reviews = await Review.find({
+    course: courseId,
+  }).populate("user", "name avatar");
+
+  return res.status(200).json({
+    status: httpStatusText.SUCCESS,
+    data: {
+      reviews,
+      stats: stats[0]
+        ? {
+            averageRating: Number(stats[0].averageRating.toFixed(2)),
+            reviewsCount: stats[0].reviewsCount,
+          }
+        : {
+            averageRating: 0,
+            reviewsCount: 0,
+          },
+    },
+  });
+});
+
 module.exports = {
   createReview,
+  getCourseReviews,
 };
