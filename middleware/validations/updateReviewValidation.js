@@ -13,3 +13,8 @@ const updateReviewValidation = () => {
       .withMessage("Comment must be at least 3 characters"),
   ];
 };
+
+module.exports = {
+  createReviewValidation,
+  updateReviewValidation,
+};
