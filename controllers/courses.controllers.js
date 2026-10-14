@@ -30,10 +30,10 @@ const getAllCourses = asyncWrapper(async (req, res, next) => {
     limit = 10,
   } = req.query;
 
-  // Validate Pagination
   const pageNumber = Number(page);
   const limitNumber = Number(limit);
 
+  // Validate Pagination
   if (
     !Number.isInteger(pageNumber) ||
     pageNumber < 1 ||
@@ -106,14 +106,14 @@ const getAllCourses = asyncWrapper(async (req, res, next) => {
     );
   }
 
-  // Build Search & Filtering Query
+  // Build Query
   const query = buildCourseQuery({
     search,
     minPrice,
     maxPrice,
   });
 
-  // Show Published Courses Only
+  // Only Published Courses
   query.status = "PUBLISHED";
 
   // Sorting Options
@@ -134,12 +134,9 @@ const getAllCourses = asyncWrapper(async (req, res, next) => {
     );
   }
 
-  const sortQuery = sortOptions[sort];
-
-  // Get Courses From Service
   const { courses, total } = await getCourses(
     query,
-    sortQuery,
+    sortOptions[sort],
     skip,
     limitNumber
   );
@@ -180,9 +177,7 @@ const getCourse = asyncWrapper(async (req, res, next) => {
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
-    data: {
-      course,
-    },
+    data: { course },
   });
 });
 
@@ -190,7 +185,6 @@ const getCourse = asyncWrapper(async (req, res, next) => {
 // Add Course
 // =========================
 const addCourse = asyncWrapper(async (req, res) => {
-  // Prevent setting status during creation
   const { title, price } = req.body;
 
   const newCourse = await createCourse({
@@ -219,7 +213,7 @@ const updateCourse = asyncWrapper(async (req, res, next) => {
     );
   }
 
-  // Allow updating title and price only
+  // Allow only title and price
   const { title, price } = req.body;
   const courseData = {};
 
@@ -276,8 +270,22 @@ const archiveCourse = asyncWrapper(async (req, res, next) => {
   const archivedCourse = await archiveCourseById(courseId);
 
   if (!archivedCourse) {
+    const existingCourse = await Course.exists({
+      _id: courseId,
+    });
+
+    if (!existingCourse) {
+      return next(
+        appError.create("Course not found", 404, httpStatusText.FAIL)
+      );
+    }
+
     return next(
-      appError.create("Course not found", 404, httpStatusText.FAIL)
+      appError.create(
+        "Only published courses can be archived",
+        409,
+        httpStatusText.FAIL
+      )
     );
   }
 
@@ -296,14 +304,12 @@ const archiveCourse = asyncWrapper(async (req, res, next) => {
 const publishCourse = asyncWrapper(async (req, res, next) => {
   const courseId = req.params.id;
 
-  // Validate Course ID
   if (!mongoose.Types.ObjectId.isValid(courseId)) {
     return next(
       appError.create("Invalid course id", 400, httpStatusText.FAIL)
     );
   }
 
-  // Publish Draft Course
   const publishedCourse = await publishCourseById(courseId);
 
   if (!publishedCourse) {
