@@ -44,7 +44,7 @@ router.patch(
 
 router
   .route("/:id")
-  .get(controllers.getCourse)
+  .get(optionalAuth, controllers.getCourse)
   .patch(
     verifyToken,
     allowedTo(userRoles.ADMIN),
@@ -52,5 +52,12 @@ router
     validateRequest,
     controllers.updateCourse,
   );
+
+router.patch(
+  "/:id/publish",
+  verifyToken,
+  allowedTo(userRoles.ADMIN),
+  controllers.publishCourse,
+);
 
 module.exports = router;
