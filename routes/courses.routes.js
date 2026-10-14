@@ -9,6 +9,7 @@ const optionalAuth = require("../middleware/optionalAuth");
 const {
   createCourseValidation,
   updateCourseValidation,
+  validateAllowedCourseFields,
 } = require("../middleware/validations/course.validation");
 
 const verifyToken = require("../middleware/verifyToken");
@@ -48,6 +49,7 @@ router
   .patch(
     verifyToken,
     allowedTo(userRoles.ADMIN),
+    validateAllowedCourseFields(),
     updateCourseValidation(),
     validateRequest,
     controllers.updateCourse,

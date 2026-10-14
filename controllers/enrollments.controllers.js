@@ -7,19 +7,27 @@ const Course = require("../models/course.model");
 
 const createEnrollment = asyncWrapper(async (req, res, next) => {
   const { course } = req.body;
+  const user = req.user.userId;
+
 
   if (!mongoose.Types.ObjectId.isValid(course)) {
-    return next(appError.create("Invalid course id", 400, httpStatusText.FAIL));
+    return next(
+      appError.create("Invalid course id", 400, httpStatusText.FAIL)
+    );
   }
 
+ 
   const foundCourse = await Course.findById(course);
 
   if (!foundCourse) {
-    return next(appError.create("Course not found", 404, httpStatusText.FAIL));
+    return next(
+      appError.create("Course not found", 404, httpStatusText.FAIL)
+    );
   }
 
+
   const existingEnrollment = await Enrollment.findOne({
-    user: req.user.userId,
+    user,
     course,
   });
 
@@ -28,20 +36,31 @@ const createEnrollment = asyncWrapper(async (req, res, next) => {
       appError.create(
         "You are already enrolled in this course",
         409,
-        httpStatusText.FAIL,
-      ),
+        httpStatusText.FAIL
+      )
     );
   }
 
-  const enrollment = new Enrollment({
-    user: req.user.userId,
+
+  if (foundCourse.status !== "PUBLISHED") {
+    return next(
+      appError.create(
+        "Enrollment is only allowed for published courses",
+        403,
+        httpStatusText.FAIL
+      )
+    );
+  }
+
+
+  const enrollment = await Enrollment.create({
+    user,
     course,
   });
 
-  await enrollment.save();
-
   return res.status(201).json({
     status: httpStatusText.SUCCESS,
+    message: "Enrollment created successfully",
     data: {
       enrollment,
     },
