@@ -15,6 +15,7 @@ const usersRouter = require("./routes/users.routes");
 const enrollmentsRouter = require("./routes/enrollments.routes");
 const reviewsRouter = require("./routes/review.routes");
 
+
 const app = express();
 
 const port = process.env.PORT || 3000;
@@ -52,6 +53,8 @@ app.use("/api/courses", coursesRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/enrollments", enrollmentsRouter);
 app.use("/api/reviews", reviewsRouter);
+
+
 
 // =========================
 
