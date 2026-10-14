@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const express = require("express");
@@ -7,61 +8,67 @@ const cors = require("cors");
 const path = require("path");
 
 const httpStatusText = require("./util/httpStatusText");
+const globalErrorHandler = require("./middleware/globalErrorHandler");
+
+const coursesRouter = require("./routes/courses.routes");
+const usersRouter = require("./routes/users.routes");
+const enrollmentsRouter = require("./routes/enrollments.routes");
 const reviewsRouter = require("./routes/review.routes");
+
 const app = express();
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const port = process.env.PORT || 3000;
 const url = process.env.MONGO_URL;
+
 
 app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 
+
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"))
+);
+
+
+
 mongoose
   .connect(url)
   .then(() => {
-    console.log("***** connect Successfully****");
+    console.log("Database connected successfully");
   })
   .catch((error) => {
-    console.log("❌ db Error", error);
+    console.error("Database connection error:", error);
   });
 
-const coursesRouter = require("./routes/courses.routes");
-const usersRouter = require("./routes/users.routes");
-const enrollmentsRouter = require("./routes/enrollments.routes");
 
 app.get("/", (req, res) => {
   res.send("API is running 🚀");
 });
+
 
 app.use("/api/courses", coursesRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/enrollments", enrollmentsRouter);
 app.use("/api/reviews", reviewsRouter);
 
-//defult route middleware   لراوت الي مو موجود
-// global middleware for not found routes
+// =========================
+
+
 app.use((req, res) => {
-  res.status(404).json({
+  return res.status(404).json({
     status: httpStatusText.FAIL,
     message: `Can't find ${req.originalUrl} on this server!`,
+    code: 404,
   });
 });
 
-// global error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
 
-  const statusCode = err.statusCode || 500;
+app.use(globalErrorHandler);
 
-  return res.status(statusCode).json({
-    status: err.statusText || httpStatusText.ERROR,
-    message: err.message,
-    code: statusCode,
-  });
-});
 
-app.listen(process.env.PORT || 3000, () => {
+
+app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
