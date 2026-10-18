@@ -10,9 +10,7 @@ const enrollmentsControllers = require(
   "../controllers/enrollments.controllers"
 );
 
-// =========================
-// Create / Get All Enrollments
-// =========================
+
 router
   .route("/")
   .post(
@@ -26,9 +24,7 @@ router
     enrollmentsControllers.getAllEnrollments
   );
 
-// =========================
-// Get My Enrollments
-// =========================
+
 router.get(
   "/my-courses",
   verifyToken,
@@ -36,9 +32,7 @@ router.get(
   enrollmentsControllers.getMyEnrollments
 );
 
-// =========================
-// Cancel Enrollment
-// =========================
+
 router.patch(
   "/:id/cancel",
   verifyToken,
@@ -46,9 +40,7 @@ router.patch(
   enrollmentsControllers.cancelEnrollment
 );
 
-// =========================
-// Update Enrollment Status
-// =========================
+
 router.patch(
   "/:id/status",
   verifyToken,
@@ -56,9 +48,7 @@ router.patch(
   enrollmentsControllers.updateEnrollmentStatus
 );
 
-// =========================
-// Get Enrollment By ID
-// =========================
+
 router.get(
   "/:id",
   verifyToken,
