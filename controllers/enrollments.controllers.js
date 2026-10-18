@@ -1,14 +1,24 @@
-const Enrollment = require("../models/enrollment");
-const asyncWrapper = require("../middleware/asyncWrapper");
-const httpStatusText = require("../util/httpStatusText");
+
 const mongoose = require("mongoose");
-const appError = require("../util/appError");
+
+const Enrollment = require("../models/enrollment");
 const Course = require("../models/course.model");
 
+const asyncWrapper = require("../middleware/asyncWrapper");
+const httpStatusText = require("../util/httpStatusText");
+const appError = require("../util/appError");
+
+const {
+  changeEnrollmentStatus,
+  cancelEnrollmentById,
+} = require("../services/enrollment.service");
+
+// =========================
+// Create Enrollment
+// =========================
 const createEnrollment = asyncWrapper(async (req, res, next) => {
   const { course } = req.body;
   const user = req.user.userId;
-
 
   if (!mongoose.Types.ObjectId.isValid(course)) {
     return next(
@@ -16,7 +26,6 @@ const createEnrollment = asyncWrapper(async (req, res, next) => {
     );
   }
 
- 
   const foundCourse = await Course.findById(course);
 
   if (!foundCourse) {
@@ -24,7 +33,6 @@ const createEnrollment = asyncWrapper(async (req, res, next) => {
       appError.create("Course not found", 404, httpStatusText.FAIL)
     );
   }
-
 
   const existingEnrollment = await Enrollment.findOne({
     user,
@@ -41,7 +49,6 @@ const createEnrollment = asyncWrapper(async (req, res, next) => {
     );
   }
 
-
   if (foundCourse.status !== "PUBLISHED") {
     return next(
       appError.create(
@@ -51,7 +58,6 @@ const createEnrollment = asyncWrapper(async (req, res, next) => {
       )
     );
   }
-
 
   const enrollment = await Enrollment.create({
     user,
@@ -66,12 +72,16 @@ const createEnrollment = asyncWrapper(async (req, res, next) => {
     },
   });
 });
-// Get my enrollments
 
+// =========================
+// Get My Enrollments
+// =========================
 const getMyEnrollments = asyncWrapper(async (req, res) => {
   const enrollments = await Enrollment.find({
     user: req.user.userId,
-  }).populate("course");
+  })
+    .populate("course", "title price status")
+    .sort({ createdAt: -1 });
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
@@ -81,54 +91,84 @@ const getMyEnrollments = asyncWrapper(async (req, res) => {
   });
 });
 
-// Get all enrollments
-const getAllEnrollments = asyncWrapper(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 2;
-  const page = parseInt(req.query.page) || 1;
+// =========================
+// Get All Enrollments
+// =========================
+const getAllEnrollments = asyncWrapper(async (req, res, next) => {
+  const { page = 1, limit = 10 } = req.query;
 
-  const skip = (page - 1) * limit;
+  const pageNumber = Number(page);
+  const limitNumber = Number(limit);
+
+  if (
+    !Number.isInteger(pageNumber) ||
+    pageNumber < 1 ||
+    !Number.isInteger(limitNumber) ||
+    limitNumber < 1 ||
+    limitNumber > 100
+  ) {
+    return next(
+      appError.create(
+        "Invalid pagination parameters",
+        400,
+        httpStatusText.FAIL
+      )
+    );
+  }
+
+  const skip = (pageNumber - 1) * limitNumber;
 
   const total = await Enrollment.countDocuments();
 
   const enrollments = await Enrollment.find()
     .populate("user", "name email role avatar")
-    .populate("course", "title price")
-    .limit(limit)
-    .skip(skip);
+    .populate("course", "title price status")
+    .sort({ createdAt: -1, _id: -1 })
+    .skip(skip)
+    .limit(limitNumber);
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
     data: {
       enrollments,
       pagination: {
-        page,
-        limit,
+        page: pageNumber,
+        limit: limitNumber,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / limitNumber),
       },
     },
   });
 });
 
-// Get enrollment by ID
-
+// =========================
+// Get Enrollment By ID
+// =========================
 const getEnrollmentById = asyncWrapper(async (req, res, next) => {
   const enrollmentId = req.params.id;
 
   if (!mongoose.Types.ObjectId.isValid(enrollmentId)) {
     return next(
-      appError.create("Invalid enrollment id", 400, httpStatusText.FAIL),
+      appError.create(
+        "Invalid enrollment id",
+        400,
+        httpStatusText.FAIL
+      )
     );
   }
 
   const enrollment = await Enrollment.findOne({
     _id: enrollmentId,
     user: req.user.userId,
-  });
+  }).populate("course", "title price status");
 
   if (!enrollment) {
     return next(
-      appError.create("Enrollment not found", 404, httpStatusText.FAIL),
+      appError.create(
+        "Enrollment not found",
+        404,
+        httpStatusText.FAIL
+      )
     );
   }
 
@@ -140,78 +180,87 @@ const getEnrollmentById = asyncWrapper(async (req, res, next) => {
   });
 });
 
-// delete enrollment by ID
-
-const deleteEnrollment = asyncWrapper(async (req, res, next) => {
+// =========================
+// Cancel Enrollment
+// =========================
+const cancelEnrollment = asyncWrapper(async (req, res, next) => {
   const enrollmentId = req.params.id;
+  const userId = req.user.userId;
 
   if (!mongoose.Types.ObjectId.isValid(enrollmentId)) {
     return next(
-      appError.create("Invalid enrollment id", 400, httpStatusText.FAIL),
+      appError.create(
+        "Invalid enrollment id",
+        400,
+        httpStatusText.FAIL
+      )
     );
   }
 
-  const enrollment = await Enrollment.findOneAndDelete({
-    _id: enrollmentId,
-    user: req.user.userId,
-  });
-
-  if (!enrollment) {
-    return next(
-      appError.create("Enrollment not found", 404, httpStatusText.FAIL),
-    );
-  }
+  const enrollment = await cancelEnrollmentById(
+    enrollmentId,
+    userId
+  );
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
-    data: null,
+    message: "Enrollment cancelled successfully",
+    data: {
+      enrollment,
+    },
   });
 });
 
-// UPDATE STATUS
+// =========================
+// Update Enrollment Status
+// ADMIN / MANAGER
+// =========================
 const updateEnrollmentStatus = asyncWrapper(async (req, res, next) => {
   const enrollmentId = req.params.id;
   const { status } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(enrollmentId)) {
     return next(
-      appError.create("Invalid enrollment id", 400, httpStatusText.FAIL),
+      appError.create(
+        "Invalid enrollment id",
+        400,
+        httpStatusText.FAIL
+      )
     );
   }
 
-  const allowedStatuses = ["ACTIVE", "COMPLETED", "CANCELLED"];
-
-  if (!allowedStatuses.includes(status)) {
+  if (!["COMPLETED", "CANCELLED"].includes(status)) {
     return next(
-      appError.create("Invalid enrollment status", 400, httpStatusText.FAIL),
+      appError.create(
+        "Invalid enrollment status",
+        400,
+        httpStatusText.FAIL
+      )
     );
   }
 
-  const enrollment = await Enrollment.findByIdAndUpdate(
+  const enrollment = await changeEnrollmentStatus(
     enrollmentId,
-    { status },
-    { new: true },
+    status
   );
-
-  if (!enrollment) {
-    return next(
-      appError.create("Enrollment not found", 404, httpStatusText.FAIL),
-    );
-  }
 
   return res.status(200).json({
     status: httpStatusText.SUCCESS,
+    message: "Enrollment status updated successfully",
     data: {
       enrollment,
     },
   });
 });
 
+// =========================
+// Exports
+// =========================
 module.exports = {
   createEnrollment,
   getMyEnrollments,
   getAllEnrollments,
   getEnrollmentById,
-  deleteEnrollment,
+  cancelEnrollment,
   updateEnrollmentStatus,
 };
