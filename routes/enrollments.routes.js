@@ -1,34 +1,69 @@
+
 const express = require("express");
 const router = express.Router();
+
 const allowedTo = require("../middleware/allowedTo");
 const userRoles = require("../util/userRoles");
-const enrollmentsControllers = require("../controllers/enrollments.controllers");
 const verifyToken = require("../middleware/verifyToken");
 
+const enrollmentsControllers = require(
+  "../controllers/enrollments.controllers"
+);
+
+// =========================
+// Create / Get All Enrollments
+// =========================
 router
   .route("/")
-  .post(verifyToken, enrollmentsControllers.createEnrollment)
+  .post(
+    verifyToken,
+    allowedTo(userRoles.USER),
+    enrollmentsControllers.createEnrollment
+  )
   .get(
     verifyToken,
     allowedTo(userRoles.ADMIN),
-    enrollmentsControllers.getAllEnrollments,
+    enrollmentsControllers.getAllEnrollments
   );
 
-router
-  .route("/my-courses")
-  .get(verifyToken, enrollmentsControllers.getMyEnrollments);
+// =========================
+// Get My Enrollments
+// =========================
+router.get(
+  "/my-courses",
+  verifyToken,
+  allowedTo(userRoles.USER),
+  enrollmentsControllers.getMyEnrollments
+);
 
-router
-  .route("/:id")
-  .get(verifyToken, enrollmentsControllers.getEnrollmentById)
-  .delete(verifyToken, enrollmentsControllers.deleteEnrollment);
+// =========================
+// Cancel Enrollment
+// =========================
+router.patch(
+  "/:id/cancel",
+  verifyToken,
+  allowedTo(userRoles.USER),
+  enrollmentsControllers.cancelEnrollment
+);
 
-router
-  .route("/:id/status")
-  .patch(
-    verifyToken,
-    allowedTo(userRoles.ADMIN, userRoles.MANAGER),
-    enrollmentsControllers.updateEnrollmentStatus,
-  );
+// =========================
+// Update Enrollment Status
+// =========================
+router.patch(
+  "/:id/status",
+  verifyToken,
+  allowedTo(userRoles.ADMIN, userRoles.MANAGER),
+  enrollmentsControllers.updateEnrollmentStatus
+);
+
+// =========================
+// Get Enrollment By ID
+// =========================
+router.get(
+  "/:id",
+  verifyToken,
+  allowedTo(userRoles.USER),
+  enrollmentsControllers.getEnrollmentById
+);
 
 module.exports = router;
