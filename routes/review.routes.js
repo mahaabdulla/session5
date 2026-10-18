@@ -12,7 +12,7 @@ const {
   updateReviewValidation,
 } = require("../middleware/validations/review.validation");
 
-// Create Review
+
 router.route("/").post(
   verifyToken,
   allowedTo(userRoles.USER),
@@ -21,7 +21,7 @@ router.route("/").post(
   controllers.createReview
 );
 
-// Update Review
+
 router.patch(
   "/:id",
   verifyToken,

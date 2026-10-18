@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 const httpStatusText = require("../util/httpStatusText");
 
@@ -11,7 +10,9 @@ const globalErrorHandler = (err, req, res, next) => {
     return next(err);
   }
 
-  console.error("Error:", err);
+  if ((err.statusCode || 500) >= 500) {
+    console.error("Unexpected error:", err);
+  }
 
   let statusCode = err.statusCode || 500;
   let status = err.statusText || httpStatusText.ERROR;
