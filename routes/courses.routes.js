@@ -17,6 +17,9 @@ const allowedTo = require("../middleware/allowedTo");
 const userRoles = require("../util/userRoles");
 const validateRequest = require("../middleware/validationResult");
 
+console.log("getAllCourses:", typeof controllers.getAllCourses);
+console.log("getCourseReviews:", typeof reviewsControllers.getCourseReviews);
+console.log("createCourseValidation:", typeof createCourseValidation);
 router
   .route("/")
   .get(controllers.getAllCourses)
